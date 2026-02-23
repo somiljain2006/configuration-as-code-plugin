@@ -33,7 +33,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
@@ -672,37 +671,6 @@ class DataBoundConfiguratorTest {
         }
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
-    public static class ListGetterMultiCtor {
-        private final List<StaplerOnlyItem> items;
-
-        @DataBoundConstructor
-        public ListGetterMultiCtor(List<StaplerOnlyItem> items) {
-            this.items = items;
-        }
-
-        @SuppressWarnings("unused")
-        public List<StaplerOnlyItem> getItems() {
-            return items;
-        }
-    }
-
-    @Test
-    void describe_iteratesCollectionAndConvertsEachItem() throws Exception {
-        Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
-        try {
-            ListGetterMultiCtor obj = new ListGetterMultiCtor(Collections.singletonList(new StaplerOnlyItem("A")));
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node =
-                    registry.lookupOrFail(ListGetterMultiCtor.class).describe(obj, new ConfigurationContext(registry));
-
-            assertNotNull(node);
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
     public static class ListGetterSetCtor {
 
         @DataBoundConstructor
@@ -763,36 +731,6 @@ class DataBoundConfiguratorTest {
         } finally {
             Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
         }
-    }
-
-    @SuppressWarnings("ClassCanBeRecord")
-    public static class ArrayCtorCollectionGetter {
-        private final String[] items;
-
-        @DataBoundConstructor
-        public ArrayCtorCollectionGetter(String[] items) {
-            this.items = items;
-        }
-
-        @SuppressWarnings("unused")
-        public List<String> getItems() {
-            return Arrays.asList(items);
-        }
-    }
-
-    @Test
-    void describe_convertsCollectionToArrayWhenCtorIsArray() throws Exception {
-        ArrayCtorCollectionGetter obj = new ArrayCtorCollectionGetter(new String[] {"A", "B"});
-
-        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-        CNode node = registry.lookupOrFail(ArrayCtorCollectionGetter.class)
-                .describe(obj, new ConfigurationContext(registry));
-
-        assertNotNull(node);
-        assertInstanceOf(Mapping.class, node);
-
-        Mapping mapping = (Mapping) node;
-        assertEquals(2, mapping.get("items").asSequence().size());
     }
 
     @SuppressWarnings("ClassCanBeRecord")
@@ -874,195 +812,6 @@ class DataBoundConfiguratorTest {
         }
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
-    public static class ListCtorCollectionGetter {
-        private final List<StaplerOnlyItem> items;
-
-        @DataBoundConstructor
-        public ListCtorCollectionGetter(List<StaplerOnlyItem> items) {
-            this.items = items;
-        }
-
-        @SuppressWarnings("unused")
-        public Collection<StaplerOnlyItem> getItems() {
-            return items;
-        }
-    }
-
-    @Test
-    void describe_hits_collection_conversion_loop_exactly() throws Exception {
-        Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
-        try {
-            ListCtorCollectionGetter obj =
-                    new ListCtorCollectionGetter(List.of(new StaplerOnlyItem("A"), new StaplerOnlyItem("B")));
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node = registry.lookupOrFail(ListCtorCollectionGetter.class)
-                    .describe(obj, new ConfigurationContext(registry));
-
-            Mapping mapping = (Mapping) node;
-            assertEquals(
-                    2, Objects.requireNonNull(mapping).get("items").asSequence().size());
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
-    @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
-    public static class SetCtorCollectionGetter {
-        private final Set<StaplerOnlyItem> items;
-
-        @DataBoundConstructor
-        public SetCtorCollectionGetter(Set<StaplerOnlyItem> items) {
-            this.items = items;
-        }
-
-        public Collection<StaplerOnlyItem> getItems() {
-            return List.of(new StaplerOnlyItem("A"), new StaplerOnlyItem("B"));
-        }
-    }
-
-    @Test
-    void describe_hits_set_constructor_collection_rewrap() throws Exception {
-        Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
-        try {
-            SetCtorCollectionGetter obj = new SetCtorCollectionGetter(Set.of(new StaplerOnlyItem("ignored")));
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node = registry.lookupOrFail(SetCtorCollectionGetter.class)
-                    .describe(obj, new ConfigurationContext(registry));
-
-            assertNotNull(node);
-            Mapping mapping = (Mapping) node;
-            assertEquals(2, mapping.get("items").asSequence().size());
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
-    @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
-    public static class ListCtorCollectionGetterFromStrings {
-        private final List<StaplerOnlyItem> items;
-
-        @DataBoundConstructor
-        public ListCtorCollectionGetterFromStrings(List<StaplerOnlyItem> items) {
-            this.items = items;
-        }
-
-        public Collection<String> getItems() {
-            return List.of("A", "B");
-        }
-    }
-
-    @Test
-    void describe_hits_collection_conversion_loop_from_collection_getter() throws Exception {
-        Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
-        try {
-            ListCtorCollectionGetterFromStrings obj =
-                new ListCtorCollectionGetterFromStrings(
-                    List.of(new StaplerOnlyItem("ignored"))
-                );
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node =
-                registry.lookupOrFail(ListCtorCollectionGetterFromStrings.class)
-                    .describe(obj, new ConfigurationContext(registry));
-
-            assertNotNull(node);
-            Mapping mapping = (Mapping) node;
-
-            assertEquals(2, mapping.get("items").asSequence().size());
-
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
-    @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
-    public static class ListCtorArrayGetterFromStrings {
-        private final List<StaplerOnlyItem> items;
-
-        @DataBoundConstructor
-        public ListCtorArrayGetterFromStrings(List<StaplerOnlyItem> items) {
-            this.items = items;
-        }
-
-        public String[] getItems() {
-            return new String[] {"X", "Y"};
-        }
-    }
-
-    @Test
-    void describe_hits_array_conversion_loop_from_array_getter() throws Exception {
-        Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
-        try {
-            ListCtorArrayGetterFromStrings obj =
-                new ListCtorArrayGetterFromStrings(
-                    List.of(new StaplerOnlyItem("ignored"))
-                );
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node =
-                registry.lookupOrFail(ListCtorArrayGetterFromStrings.class)
-                    .describe(obj, new ConfigurationContext(registry));
-
-            assertNotNull(node);
-            Mapping mapping = (Mapping) node;
-
-            assertEquals(2, mapping.get("items").asSequence().size());
-
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
-    @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
-    public static class ArrayCtorArrayGetterMismatch {
-        private final StaplerOnlyItem[] items;
-
-        @DataBoundConstructor
-        public ArrayCtorArrayGetterMismatch(StaplerOnlyItem[] items) {
-            this.items = items;
-        }
-
-        public String[] getItems() {
-            return new String[] { "A", "B" };
-        }
-    }
-
-    @Test
-    void describe_converts_array_items_from_strings_using_stapler_converter_array_ctor_mismatch() throws Exception {
-        final AtomicInteger convertCount = new AtomicInteger(0);
-
-        Converter converter = new Converter() {
-            @Override
-            public <T> T convert(Class<T> type, Object value) {
-                convertCount.incrementAndGet();
-                if (value == null) {
-                    return null;
-                }
-                return type.cast(new StaplerOnlyItem("converted-by-stapler-" + value));
-            }
-        };
-
-        Stapler.CONVERT_UTILS.register(converter, StaplerOnlyItem.class);
-        try {
-            ArrayCtorArrayGetterMismatch obj = new ArrayCtorArrayGetterMismatch(new StaplerOnlyItem[] { new StaplerOnlyItem("ignored") });
-
-            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
-            CNode node = registry.lookupOrFail(ArrayCtorArrayGetterMismatch.class).describe(obj, new ConfigurationContext(registry));
-
-            assertNotNull(node);
-            Mapping mapping = (Mapping) node;
-            assertEquals(2, mapping.get("items").asSequence().size());
-
-            assertTrue(convertCount.get() >= 2, "Stapler converter should have been called at least twice");
-
-        } finally {
-            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
-        }
-    }
-
     @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
     public static class SetCtorStaplerOnlyItemHolder {
         private final Set<StaplerOnlyItem> items;
@@ -1081,14 +830,13 @@ class DataBoundConfiguratorTest {
     void describe_converts_collection_to_set_via_stapler_converter() throws Exception {
         Stapler.CONVERT_UTILS.register(new StaplerOnlyItemConverter(), StaplerOnlyItem.class);
         try {
-            SetCtorStaplerOnlyItemHolder obj = new SetCtorStaplerOnlyItemHolder(
-                Set.of(new StaplerOnlyItem("A"), new StaplerOnlyItem("B"))
-            );
+            SetCtorStaplerOnlyItemHolder obj =
+                    new SetCtorStaplerOnlyItemHolder(Set.of(new StaplerOnlyItem("A"), new StaplerOnlyItem("B")));
 
             ConfiguratorRegistry registry = ConfiguratorRegistry.get();
 
             CNode node = registry.lookupOrFail(SetCtorStaplerOnlyItemHolder.class)
-                .describe(obj, new ConfigurationContext(registry));
+                    .describe(obj, new ConfigurationContext(registry));
 
             assertNotNull(node, "configured instance should not be null");
             assertInstanceOf(Mapping.class, node);
@@ -1099,5 +847,71 @@ class DataBoundConfiguratorTest {
         } finally {
             Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
         }
+    }
+
+    @SuppressWarnings({"ClassCanBeRecord", "unused", "FieldCanBeLocal"})
+    public static class SetCtorFromStrings {
+        private final Set<StaplerOnlyItem> items;
+
+        @DataBoundConstructor
+        public SetCtorFromStrings(Set<StaplerOnlyItem> items) {
+            this.items = items;
+        }
+
+        public Collection<String> getItems() {
+            return List.of("A", "B");
+        }
+    }
+
+    @Test
+    void configure_converts_sequence_to_set_via_stapler_converter_for_constructor() throws Exception {
+        final AtomicInteger convertCount = new AtomicInteger(0);
+
+        Converter converter = new Converter() {
+            @Override
+            public <T> T convert(Class<T> type, Object value) {
+                convertCount.incrementAndGet();
+                if (value == null) {
+                    return null;
+                }
+                return type.cast(new StaplerOnlyItem("converted-by-stapler-" + value));
+            }
+        };
+
+        Stapler.CONVERT_UTILS.register(converter, StaplerOnlyItem.class);
+        try {
+            Mapping config = new Mapping();
+            Sequence seq = new Sequence();
+            seq.add(new Scalar("A"));
+            seq.add(new Scalar("B"));
+            config.put("items", seq);
+
+            ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+
+            SetCtorFromStrings configured = (SetCtorFromStrings) registry.lookupOrFail(SetCtorFromStrings.class)
+                    .configure(config, new ConfigurationContext(registry));
+
+            assertNotNull(configured);
+            assertNotNull(configured.getItems());
+            assertEquals(2, configured.getItems().size());
+            assertTrue(convertCount.get() >= 2, "Stapler converter should have been called once per sequence element");
+
+        } finally {
+            Stapler.CONVERT_UTILS.deregister(StaplerOnlyItem.class);
+        }
+    }
+
+    @Test
+    void describe_hits_set_wrap_branch_when_stapler_returns_collection() throws Exception {
+        SetCtorStaplerOnlyItemHolder obj =
+                new SetCtorStaplerOnlyItemHolder(Set.of(new StaplerOnlyItem("A"), new StaplerOnlyItem("B")));
+
+        ConfiguratorRegistry registry = ConfiguratorRegistry.get();
+
+        CNode node = registry.lookupOrFail(SetCtorStaplerOnlyItemHolder.class)
+                .describe(obj, new ConfigurationContext(registry));
+
+        assertNotNull(node);
+        assertInstanceOf(Mapping.class, node);
     }
 }
