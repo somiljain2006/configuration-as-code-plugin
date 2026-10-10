@@ -26,7 +26,7 @@ import org.junit.rules.RuleChain;
 
 public class GlobalNodePropertiesWithEnvVarsTest {
 
-    private JenkinsConfiguredWithCodeRule j = new JenkinsConfiguredWithCodeRule();
+    private final JenkinsConfiguredWithCodeRule j = new JenkinsConfiguredWithCodeRule();
 
     @Rule
     public RuleChain chain = RuleChain.outerRule(new EnvVarsRule()).around(j);
@@ -36,9 +36,8 @@ public class GlobalNodePropertiesWithEnvVarsTest {
     @Envs({@Env(name = "VALUE_1", value = "BAR"), @Env(name = "TEST_GIT_HOME", value = "git-home")})
     public void configureWithEnvVarsTest() {
         DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = j.jenkins.getGlobalNodeProperties();
-        Map<String, String> envVars = ((EnvironmentVariablesNodeProperty)
-                        nodeProperties.get(EnvironmentVariablesNodeProperty.class))
-                .getEnvVars();
+        Map<String, String> envVars =
+                nodeProperties.get(EnvironmentVariablesNodeProperty.class).getEnvVars();
 
         assertThat(envVars.size(), is(2));
         assertThat(envVars.get("FOO"), is("BAR"));
@@ -60,5 +59,79 @@ public class GlobalNodePropertiesWithEnvVarsTest {
         String exported = toYamlString(yourAttribute);
         String expected = toStringFromYamlFile(this, "GlobalNodePropertiesWithEnvVarsTestExpected.yml");
         assertThat(exported, Is.is(expected));
+    }
+
+    @Test
+    @ConfiguredWithCode({"GlobalNodePropertiesWithEnvVarsTest.yml", "GlobalNodePropertiesWithEnvVarsAdditionalTest.yml"
+    })
+    @Envs({@Env(name = "VALUE_1", value = "BAR"), @Env(name = "TEST_GIT_HOME", value = "git-home")})
+    public void mergeEnvVarsFromMultipleConfigFiles() {
+        DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = j.jenkins.getGlobalNodeProperties();
+
+        EnvironmentVariablesNodeProperty envProperty = nodeProperties.get(EnvironmentVariablesNodeProperty.class);
+
+        assertThat(envProperty, org.hamcrest.Matchers.notNullValue());
+
+        Map<String, String> envVars = envProperty.getEnvVars();
+
+        assertThat(envVars.get("FOO"), is("BAR"));
+        assertThat(envVars.get("FOO2"), is(""));
+        assertThat(envVars.get("FOO3"), is("baz"));
+        assertThat(nodeProperties.size(), is(2));
+    }
+
+    @Test
+    @ConfiguredWithCode({
+        "GlobalNodePropertiesWithEnvVarsTest.yml",
+        "GlobalNodePropertiesWithEnvVarsAdditionalTest.yml",
+        "GlobalNodePropertiesWithEnvVarsThirdTest.yml"
+    })
+    @Envs({@Env(name = "VALUE_1", value = "BAR"), @Env(name = "TEST_GIT_HOME", value = "git-home")})
+    public void mergeEnvVarsFromThreeConfigFiles() {
+        DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = j.jenkins.getGlobalNodeProperties();
+
+        EnvironmentVariablesNodeProperty envProperty = nodeProperties.get(EnvironmentVariablesNodeProperty.class);
+
+        assertThat(envProperty, org.hamcrest.Matchers.notNullValue());
+        Map<String, String> envVars = envProperty.getEnvVars();
+
+        assertThat(envVars.get("FOO"), is("BAR"));
+        assertThat(envVars.get("FOO2"), is(""));
+        assertThat(envVars.get("FOO3"), is("baz"));
+        assertThat(envVars.get("FOO4"), is("qux"));
+    }
+
+    @Test
+    @ConfiguredWithCode({"GlobalNodePropertiesWithEnvVarsTest.yml", "GlobalNodePropertiesWithEnvVarsAdditionalTest.yml"
+    })
+    @Envs({@Env(name = "VALUE_1", value = "BAR"), @Env(name = "TEST_GIT_HOME", value = "git-home")})
+    public void unrelatedPropertiesRemainIntactAfterMerge() {
+        DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = j.jenkins.getGlobalNodeProperties();
+
+        ToolLocationNodeProperty toolLocations = nodeProperties.get(ToolLocationNodeProperty.class);
+
+        assertThat(toolLocations, org.hamcrest.Matchers.notNullValue());
+        assertThat(toolLocations.getLocations(), hasSize(1));
+        assertThat(toolLocations.getLocations().get(0).getHome(), is("git-home"));
+    }
+
+    @Test
+    @ConfiguredWithCode({"GlobalNodePropertiesWithEnvVarsTest.yml", "GlobalNodePropertiesWithEnvVarsAdditionalTest.yml"
+    })
+    @Envs({
+        @Env(name = "VALUE_1", value = "BAR"),
+        @Env(name = "TEST_GIT_HOME", value = "git-home"),
+        @Env(name = "CASC_MERGE_STRATEGY", value = "override")
+    })
+    public void mergeEnvVarsWithOverrideStrategy() {
+        DescribableList<NodeProperty<?>, NodePropertyDescriptor> nodeProperties = j.jenkins.getGlobalNodeProperties();
+
+        EnvironmentVariablesNodeProperty envProperty = nodeProperties.get(EnvironmentVariablesNodeProperty.class);
+
+        assertThat(envProperty, org.hamcrest.Matchers.notNullValue());
+        Map<String, String> envVars = envProperty.getEnvVars();
+
+        assertThat(envVars.get("FOO"), is("BAR"));
+        assertThat(envVars.get("FOO3"), is("baz"));
     }
 }
